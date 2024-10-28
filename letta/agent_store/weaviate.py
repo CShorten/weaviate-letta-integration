@@ -175,7 +175,7 @@ class WeaviateStorageConnector(StorageConnector):
             )
         return points
 
-    def get_weaviate_filters(filters: List[Dict[str, Any]]) -> _Filters:
+    def get_weaviate_filters(self, filters: List[Dict[str, Any]]) -> _Filters:
         """
         Constructs a Weaviate filter based on provided conditions.
     
