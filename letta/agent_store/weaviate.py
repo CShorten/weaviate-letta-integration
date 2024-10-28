@@ -175,47 +175,25 @@ class WeaviateStorageConnector(StorageConnector):
             )
         return points
 
-    def get_weaviate_filters(self, filters: List[Dict[str, Any]]) -> _Filters:
+    def get_weaviate_filters(filters: Optional[Dict[str, Any]] = None) -> _Filters:
         """
-        Constructs a Weaviate filter based on provided conditions.
+        Constructs a Weaviate filter based on provided conditions, using 'equal' operator for all conditions,
+        and including the hard-coded metadata property key in the property names.
     
         Args:
-            filters (List[Dict]): List of dictionaries specifying filter conditions.
-                Each dictionary should have 'property', 'operator', and 'value' keys.
+            filters (Dict): Dictionary of field names to values for filtering.
     
         Returns:
             _Filters: A Weaviate filter object that can be used for queries.
         """
         must_conditions = []
     
-        for condition in filters:
-            property_name = condition.get('property')
-            operator = condition.get('operator')
-            value = condition.get('value')
+        for key, value in (filters or {}).items():
+            # Construct the full property path including the metadata key
+            property_name = f"{METADATA_PROPERTY_KEY}.{key}"
     
-            if not property_name or not operator:
-                raise ValueError("Each filter condition must have 'property' and 'operator' keys.")
-    
-            # Get the FilterByProperty object for the given property
-            filter_by_property = Filter.by_property(property_name)
-    
-            # Check if the operator is a valid method
-            if not hasattr(filter_by_property, operator):
-                raise ValueError(f"Unsupported operator: {operator}")
-    
-            # Get the filter method directly
-            filter_method = getattr(filter_by_property, operator)
-    
-            # Handle cases where the operator does not require a value (e.g., is_none)
-            if operator == "is_none":
-                if 'value' not in condition:
-                    raise ValueError(f"Operator '{operator}' requires a 'value' key.")
-                filter_condition = filter_method(condition['value'])
-            else:
-                if 'value' not in condition:
-                    raise ValueError(f"Operator '{operator}' requires a 'value' key.")
-                filter_condition = filter_method(value)
-    
+            # Create the filter condition using 'equal' operator
+            filter_condition = Filter.by_property(property_name).equal(value)
             must_conditions.append(filter_condition)
     
         if len(must_conditions) == 1:
