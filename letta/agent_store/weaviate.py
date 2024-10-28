@@ -44,7 +44,7 @@ class WeaviateStorageConnector(StorageConnector):
         next_offset = None
         stop_scrolling = False
         while not stop_scrolling:
-            results, next_offset = self.collection.query.fetch_objects(
+            results, next_offset = collection.query.fetch_objects(
                 scroll_filter=filters,
                 limit=page_size,
                 offset=next_offset,
@@ -58,12 +58,10 @@ class WeaviateStorageConnector(StorageConnector):
         if self.size(filters) == 0:
             return []
         filters = self.get_weaviate_filters(filters)
-        results, _ = self.weaviate_client.scroll(
-            self.table_name,
+        collection = weaviate_client.collections.get(self.table_name)
+        results, _ = collection.query.fetch_objects(
             scroll_filter=filters,
             limit=limit,
-            with_payload=True,
-            with_vectors=True,
         )
         return self.to_records(results)
 
