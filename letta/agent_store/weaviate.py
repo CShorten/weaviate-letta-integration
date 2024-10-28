@@ -32,9 +32,10 @@ class WeaviateStorageConnector(StorageConnector):
         else:
             raise ValueError("Weaviate storage requires either a URI or a path to the storage configured")
         if not self.weaviate_client.collections.exists(self.table_name):
+            # We can pass the embedding model through with `.custom()`
+            # ignoring for now, (will use default in Weaviate config)
             self.weavate_client.create_collections.create(
-                collection_name=self.table_name,
-                vectors_config=wvcc.Configure.Vectorizer()
+                collection_name=self.table_name
             )
         self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "file_id"]
 
@@ -59,10 +60,11 @@ class WeaviateStorageConnector(StorageConnector):
             return []
         filters = self.get_weaviate_filters(filters)
         collection = self.weaviate_client.collections.get(self.table_name)
-        results, _ = collection.query.fetch_objects(
+        results = collection.query.fetch_objects(
             scroll_filter=filters,
             limit=limit,
         )
+        # needs additional parsing here
         return self.to_records(results)
 
     def get(self, id: str) -> Optional[RecordType]:
@@ -73,15 +75,14 @@ class WeaviateStorageConnector(StorageConnector):
         return self.to_records(results)[0]
 
     def insert(self, record: Record):
-        points = self.to_points([record])
         collection = weaviate_client.collections.get(self.table_name)
         collection.insert(
-            properties=points
+            properties=record
         )
 
     def insert_many(self, records: List[RecordType], show_progress=False):
-        points = self.to_points(records)
-        self.weaviate_client.insert(self.table_name, points=points)
+        # Is there a way to do this without the context manager?
+        self.weaviate_client.insert(self.table_name, points=records)
 
     def delete(self, filters: Optional[Dict] = {}):
         filters = self.get_weaviate_filters(filters)
@@ -89,7 +90,6 @@ class WeaviateStorageConnector(StorageConnector):
 
     def delete_table(self):
         self.weaviate_client.delete_collection(self.table_name)
-        self.weaviate_client.close()
 
     def size(self, filters: Optional[Dict] = {}) -> int:
         filters = self.get_weaviate_filters(filters)
