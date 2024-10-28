@@ -176,15 +176,57 @@ class WeaviateStorageConnector(StorageConnector):
         return points
 
     def get_weaviate_filters(self, filters: Optional[Dict] = {}):
-        from weaviate_client import models
 
-        filter_conditions = {**self.filters, **filters} if filters is not None else self.filters
-        must_conditions = []
-        for key, value in filter_conditions.items():
-            match_value = str(value) if key in self.uuid_fields else value
-            field_condition = models.FieldCondition(
-                key=f"{METADATA_PAYLOAD_KEY}.{key}",
-                match=models.MatchValue(value=match_value),
-            )
-            must_conditions.append(field_condition)
-        return models.Filter(must=must_conditions)
+    from typing import Dict, List, Any
+from weaviate.exceptions import WeaviateInvalidInputError
+
+def get_weaviate_filters(filters: List[Dict[str, Any]]) -> _Filters:
+    """
+    Constructs a Weaviate filter based on provided conditions.
+
+    Args:
+        filters (List[Dict]): List of dictionaries specifying filter conditions.
+            Each dictionary should have 'property', 'operator', and 'value' keys.
+
+    Returns:
+        _Filters: A Weaviate filter object that can be used for queries.
+    """
+    must_conditions = []
+
+    for condition in filters:
+        property_name = condition.get('property')
+        operator = condition.get('operator')
+        value = condition.get('value')
+
+        if not property_name or not operator:
+            raise ValueError("Each filter condition must have 'property' and 'operator' keys.")
+
+        # Get the FilterByProperty object for the given property
+        filter_by_property = Filter.by_property(property_name)
+
+        # Check if the operator is a valid method
+        if not hasattr(filter_by_property, operator):
+            raise ValueError(f"Unsupported operator: {operator}")
+
+        # Get the filter method directly
+        filter_method = getattr(filter_by_property, operator)
+
+        # Handle cases where the operator does not require a value (e.g., is_none)
+        if operator == "is_none":
+            if 'value' not in condition:
+                raise ValueError(f"Operator '{operator}' requires a 'value' key.")
+            filter_condition = filter_method(condition['value'])
+        else:
+            if 'value' not in condition:
+                raise ValueError(f"Operator '{operator}' requires a 'value' key.")
+            filter_condition = filter_method(value)
+
+        must_conditions.append(filter_condition)
+
+    if len(must_conditions) == 1:
+        # If only one filter, return it directly
+        return must_conditions[0]
+    elif must_conditions:
+        # Combine conditions with AND logic
+        return Filter.all_of(must_conditions)
+
