@@ -110,6 +110,7 @@ class WeaviateStorageConnector(StorageConnector):
         results = collectin.query.hybrid(
             query=query
             limit=top_k,
+            include_vector=True
         )
         return self.to_records(results)
 
@@ -117,9 +118,9 @@ class WeaviateStorageConnector(StorageConnector):
         parsed_records = []
         for record in records:
             record = deepcopy(record)
-            metadata = record.payload[METADATA_PAYLOAD_KEY]
-            text = record.payload[TEXT_PAYLOAD_KEY]
-            _id = metadata.pop("id")
+            #metadata = record.payload[METADATA_PAYLOAD_KEY]
+            #text = record.payload[TEXT_PAYLOAD_KEY]
+            _id = record.uuid
             embedding = record.vector
             for key, value in metadata.items():
                 if key in self.uuid_fields:
