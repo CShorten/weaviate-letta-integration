@@ -58,7 +58,7 @@ class WeaviateStorageConnector(StorageConnector):
         if self.size(filters) == 0:
             return []
         filters = self.get_weaviate_filters(filters)
-        collection = weaviate_client.collections.get(self.table_name)
+        collection = self.weaviate_client.collections.get(self.table_name)
         results, _ = collection.query.fetch_objects(
             scroll_filter=filters,
             limit=limit,
@@ -66,12 +66,8 @@ class WeaviateStorageConnector(StorageConnector):
         return self.to_records(results)
 
     def get(self, id: str) -> Optional[RecordType]:
-        results = self.weaviate_client.retrieve(
-            collection_name=self.table_name,
-            ids=[str(id)],
-            with_payload=True,
-            with_vectors=True,
-        )
+        collection = self.weaviate_client.collections.get(self.table_name)
+        results = collection.query.fetch_object_by_id(id)
         if not results:
             return None
         return self.to_records(results)[0]
@@ -79,13 +75,13 @@ class WeaviateStorageConnector(StorageConnector):
     def insert(self, record: Record):
         points = self.to_points([record])
         collection = weaviate_client.collections.get(self.table_name)
-        self.weaviate_client.insert(
+        collection.insert(
             properties=points
         )
 
     def insert_many(self, records: List[RecordType], show_progress=False):
         points = self.to_points(records)
-        self.weaviate_client.upsert(self.table_name, points=points)
+        self.weaviate_client.insert(self.table_name, points=points)
 
     def delete(self, filters: Optional[Dict] = {}):
         filters = self.get_weaviate_filters(filters)
@@ -110,13 +106,10 @@ class WeaviateStorageConnector(StorageConnector):
         filters: Optional[Dict] = {},
     ) -> List[RecordType]:
         filters = self.get_filters(filters)
-        results = self.weaviate_client.search(
-            self.table_name,
-            query_vector=query_vec,
-            query_filter=filters,
+        collection = weaviate_client.collections.get(self.table_name)
+        results = collectin.query.hybrid(
+            query=query
             limit=top_k,
-            with_payload=True,
-            with_vectors=True,
         )
         return self.to_records(results)
 
