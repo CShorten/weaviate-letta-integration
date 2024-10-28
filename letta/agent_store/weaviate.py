@@ -140,41 +140,6 @@ class WeaviateStorageConnector(StorageConnector):
             )
         return parsed_records
 
-    def to_points(self, records: List[RecordType]):
-        from weaviate_client import models
-
-        assert all(isinstance(r, Passage) for r in records)
-        points = []
-        records = list(set(records))
-        for record in records:
-            record = vars(record)
-            _id = record.pop("id")
-            text = record.pop("text", "")
-            embedding = record.pop("embedding", {})
-            record_metadata = record.pop("metadata_", None) or {}
-            if "created_at" in record:
-                record["created_at"] = datetime_to_timestamp(record["created_at"])
-            metadata = {key: value for key, value in record.items() if value is not None}
-            metadata = {
-                **metadata,
-                **record_metadata,
-                "id": str(_id),
-            }
-            for key, value in metadata.items():
-                if key in self.uuid_fields:
-                    metadata[key] = str(value)
-            points.append(
-                models.PointStruct(
-                    id=str(_id),
-                    vector=embedding,
-                    payload={
-                        TEXT_PAYLOAD_KEY: text,
-                        METADATA_PAYLOAD_KEY: metadata,
-                    },
-                )
-            )
-        return points
-
     def get_weaviate_filters(filters: Optional[Dict[str, Any]] = None) -> _Filters:
         """
         Constructs a Weaviate filter based on provided conditions, using 'equal' operator for all conditions,
