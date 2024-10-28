@@ -84,7 +84,10 @@ class WeaviateStorageConnector(StorageConnector):
 
     def insert(self, record: Record):
         points = self.to_points([record])
-        self.weaviate_client.upsert(self.table_name, points=points)
+        collection = weaviate_client.collections.get(self.table_name)
+        self.weaviate_client.insert(
+            properties=points
+        )
 
     def insert_many(self, records: List[RecordType], show_progress=False):
         points = self.to_points(records)
