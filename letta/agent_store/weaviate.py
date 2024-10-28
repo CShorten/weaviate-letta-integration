@@ -39,19 +39,15 @@ class WeaviateStorageConnector(StorageConnector):
         self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "file_id"]
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 10) -> Iterator[List[RecordType]]:
-        from Weavate_client import grpc
-
         filters = self.get_weaviate_filters(filters)
+        collection = weaviate_client.collections.get(self.table_name)
         next_offset = None
         stop_scrolling = False
         while not stop_scrolling:
-            results, next_offset = self.Weaviate_client.scroll(
-                collection_name=self.table_name,
+            results, next_offset = self.collection.query.fetch_objects(
                 scroll_filter=filters,
                 limit=page_size,
                 offset=next_offset,
-                with_payload=True,
-                with_vectors=True,
             )
             stop_scrolling = next_offset is None or (
                 isinstance(next_offset, grpc.PointId) and next_offset.num == 0 and next_offset.uuid == ""
